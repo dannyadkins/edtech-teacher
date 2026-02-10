@@ -143,12 +143,16 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
     if config.base_url:
         service_kwargs["base_url"] = config.base_url
 
+    print("init: creating service client")
     service_client = tinker.ServiceClient(**service_kwargs)
+    print("init: creating LoRA training client")
     training_client = service_client.create_lora_training_client(
         base_model=config.base_model,
         rank=config.rank,
     )
+    print("init: loading tokenizer")
     tokenizer = training_client.get_tokenizer()
+    print("init: tokenizer ready")
 
     sampling_params = types.SamplingParams(
         max_tokens=config.max_tokens,
@@ -184,15 +188,16 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
         writer.writeheader()
 
         for step in range(1, config.steps + 1):
+            print(f"step={step:04d} stage=save_weights_and_create_sampling_client")
             try:
-                sampler_path = training_client.save_weights_for_sampler(
+                sampling_client = training_client.save_weights_and_get_sampling_client(
                     name=f"step-{step:04d}",
-                    ttl_seconds=config.ttl_seconds,
-                ).result(timeout=config.api_timeout_sec).path
+                )
             except Exception as exc:
-                print(f"step={step:04d} save_weights timeout/error: {exc}")
+                print(
+                    f"step={step:04d} save_weights_and_get_sampling_client timeout/error: {exc}"
+                )
                 continue
-            sampling_client = service_client.create_sampling_client(model_path=sampler_path)
 
             group_data = []
             futures = []
@@ -220,6 +225,7 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
                 futures.append(future)
                 group_data.append((profile, prompt_tokens))
 
+            print(f"step={step:04d} stage=collect_samples futures={len(futures)}")
             datums = []
             group_rewards = []
             group_improvements = []
