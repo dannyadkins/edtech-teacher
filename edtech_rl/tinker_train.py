@@ -91,10 +91,17 @@ def _encode(tokenizer, text: str) -> list[int]:
 
 
 def _decode(tokenizer, tokens: list[int]) -> str:
+    backend = getattr(tokenizer, "backend_tokenizer", None)
+    if backend is not None:
+        try:
+            return str(backend.decode(tokens))
+        except Exception:
+            pass
     try:
-        return tokenizer.decode(tokens, skip_special_tokens=True)
-    except TypeError:
-        return tokenizer.decode(tokens)
+        pieces = tokenizer.convert_ids_to_tokens(tokens)
+        return str(tokenizer.convert_tokens_to_string(pieces))
+    except Exception:
+        return ""
 
 
 def _sequence_list(result) -> list:
@@ -122,7 +129,19 @@ def _load_env_file(path: str = ".env") -> None:
         os.environ.setdefault(key, value)
 
 
+def _wait_for_future_result(future, timeout_sec: float, poll_sec: float = 0.25):
+    deadline = time.time() + timeout_sec
+    while time.time() < deadline:
+        if future.done():
+            return future.result()
+        time.sleep(poll_sec)
+    raise TimeoutError(f"future did not complete within {timeout_sec:.1f}s")
+
+
 def run_tinker_training(config: TinkerTrainConfig) -> None:
+    os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
+    os.environ.setdefault("USE_TF", "0")
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     _load_env_file(".env")
     try:
         import tinker
@@ -235,7 +254,10 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
 
             for future, (profile, prompt_tokens) in zip(futures, group_data):
                 try:
-                    result = future.result(timeout=config.api_timeout_sec)
+                    result = _wait_for_future_result(
+                        future,
+                        timeout_sec=config.api_timeout_sec,
+                    )
                 except Exception as exc:
                     print(f"step={step:04d} sample timeout/error: {exc}")
                     continue
@@ -308,9 +330,21 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
                     datum = types.Datum(
                         model_input=types.ModelInput.from_ints(model_input_tokens),
                         loss_fn_inputs={
-                            "target_tokens": types.TensorData(data=target_tokens, shape=[len(target_tokens)]),
-                            "logprobs": types.TensorData(data=padded_logprobs, shape=[len(padded_logprobs)]),
-                            "advantages": types.TensorData(data=padded_advantages, shape=[len(padded_advantages)]),
+                            "target_tokens": types.TensorData(
+                                data=target_tokens,
+                                dtype="int64",
+                                shape=[len(target_tokens)],
+                            ),
+                            "logprobs": types.TensorData(
+                                data=padded_logprobs,
+                                dtype="float32",
+                                shape=[len(padded_logprobs)],
+                            ),
+                            "advantages": types.TensorData(
+                                data=padded_advantages,
+                                dtype="float32",
+                                shape=[len(padded_advantages)],
+                            ),
                         },
                     )
                     datums.append(datum)
@@ -318,10 +352,10 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
             if datums:
                 try:
                     _ = training_client.forward_backward(
-                        datums=datums,
+                        data=datums,
                         loss_fn="importance_sampling",
                     ).result(timeout=config.api_timeout_sec)
-                    _ = training_client.optim_step(params=adam_params).result(
+                    _ = training_client.optim_step(adam_params=adam_params).result(
                         timeout=config.api_timeout_sec
                     )
                 except Exception as exc:

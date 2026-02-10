@@ -1,0 +1,24 @@
+{
+  "final_model_path": "tinker://79500836-a87a-5377-979b-f156d40f777f:train:0/sampler_weights/final",
+  "config": {
+    "base_model": "Qwen/Qwen3-8B",
+    "base_url": null,
+    "steps": 3,
+    "batch_size": 2,
+    "group_size": 2,
+    "max_tokens": 80,
+    "temperature": 0.8,
+    "learning_rate": 4e-05,
+    "rank": 32,
+    "ttl_seconds": 86400,
+    "token_penalty": 0.06,
+    "test_size": 24,
+    "seed": 17,
+    "output_dir": "runs/tinker-binary-3e-clean",
+    "topic_id": "decimal_to_binary",
+    "init_skill_max": 0.12,
+    "weakest_skill_max": 0.05,
+    "sample_log_per_step": 2,
+    "api_timeout_sec": 20.0
+  }
+}

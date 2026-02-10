@@ -1,0 +1,10 @@
+{"step": 1, "mean_reward": -2.287205766858928, "mean_improvement": 0.012394608998077386, "mean_tokens": 58.77777777777778, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 8.332260131835938}
+{"step": 2, "mean_reward": 0.01849708604354272, "mean_improvement": 0.03485163752710209, "mean_tokens": 57.77777777777778, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 17.215065002441406}
+{"step": 3, "mean_reward": -0.1495827724159402, "mean_improvement": 0.034437505609173934, "mean_tokens": 59.888888888888886, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 26.540194034576416}
+{"step": 4, "mean_reward": -1.7852490663317246, "mean_improvement": 0.015280842670016087, "mean_tokens": 55.22222222222222, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 46.372950077056885}
+{"step": 5, "mean_reward": -2.8201343007924504, "mean_improvement": 0.006865323658742162, "mean_tokens": 58.44444444444445, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 63.24422311782837}
+{"step": 6, "mean_reward": -2.1573542311973344, "mean_improvement": 0.013893124354693323, "mean_tokens": 59.11111111111111, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 74.19766020774841}
+{"step": 7, "mean_reward": -1.9171612606713204, "mean_improvement": 0.018161720726620128, "mean_tokens": 62.22222222222222, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 84.36539101600647}
+{"step": 8, "mean_reward": -1.0879399971640327, "mean_improvement": 0.02312060002835967, "mean_tokens": 56.666666666666664, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 92.84044122695923}
+{"step": 9, "mean_reward": -3.0637886537575905, "mean_improvement": 0.005228780129090759, "mean_tokens": 59.77777777777778, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 100.99068212509155}
+{"step": 10, "mean_reward": -0.34084139565321325, "mean_improvement": 0.03219158604346787, "mean_tokens": 59.333333333333336, "mean_prompt_leaks": 0.0, "datums": 9, "groups": 3, "elapsed_sec": 110.01624011993408}

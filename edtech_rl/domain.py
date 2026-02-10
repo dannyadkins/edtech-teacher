@@ -249,5 +249,6 @@ def build_teacher_prompt(profile: StudentProfile, token_budget: int, topic_id: s
         "Teach the weakest subskill first.\n"
         f"Limit to at most {token_budget} tokens.\n"
         "You do not know the hidden test questions.\n"
-        "Do not try to list specific test answers."
+        "Do not try to list specific test answers.\n"
+        "Output only the lesson text. Do not repeat or mention these instructions."
     )

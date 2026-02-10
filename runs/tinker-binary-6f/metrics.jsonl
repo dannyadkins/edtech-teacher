@@ -1,0 +1,6 @@
+{"step": 1, "mean_reward": -2.860328491905011, "mean_improvement": 0.007696715080949889, "mean_tokens": 60.5, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 25.006025075912476}
+{"step": 2, "mean_reward": -1.8602910489365774, "mean_improvement": 0.013347089510634227, "mean_tokens": 53.25, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 35.047383069992065}
+{"step": 3, "mean_reward": -0.11070921835530034, "mean_improvement": 0.033692907816446994, "mean_tokens": 58.0, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 48.88667011260986}
+{"step": 4, "mean_reward": 2.559261931285574, "mean_improvement": 0.05964261931285574, "mean_tokens": 56.75, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 57.427587032318115}
+{"step": 5, "mean_reward": -0.05711966867090146, "mean_improvement": 0.033778803313290987, "mean_tokens": 57.25, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 65.81276202201843}
+{"step": 6, "mean_reward": -3.29872761891196, "mean_improvement": 0.0034627238108804028, "mean_tokens": 60.75, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 75.79027009010315}

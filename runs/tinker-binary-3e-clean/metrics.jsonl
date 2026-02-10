@@ -1,0 +1,3 @@
+{"step": 1, "mean_reward": -2.158730753356967, "mean_improvement": 0.01441269246643033, "mean_tokens": 60.0, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 35.08692002296448}
+{"step": 2, "mean_reward": -0.571381652001949, "mean_improvement": 0.03193618347998051, "mean_tokens": 62.75, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 70.80667018890381}
+{"step": 3, "mean_reward": -0.9762005688309832, "mean_improvement": 0.026687994311690166, "mean_tokens": 60.75, "mean_prompt_leaks": 0.0, "datums": 4, "groups": 2, "elapsed_sec": 113.42997217178345}
