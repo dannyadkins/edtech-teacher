@@ -4,12 +4,14 @@ import argparse
 import csv
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import random
 import statistics
 import time
 
 from .domain import build_teacher_prompt, evaluate_lesson, sample_weak_profile
+from .topics import DEFAULT_TOPIC_ID, get_topic
 
 
 @dataclass
@@ -28,6 +30,11 @@ class TinkerTrainConfig:
     test_size: int = 24
     seed: int = 17
     output_dir: str = "runs/tinker"
+    topic_id: str = DEFAULT_TOPIC_ID
+    init_skill_max: float = 0.28
+    weakest_skill_max: float = 0.12
+    sample_log_per_step: int = 3
+    api_timeout_sec: float = 120.0
 
 
 def parse_args() -> TinkerTrainConfig:
@@ -46,7 +53,13 @@ def parse_args() -> TinkerTrainConfig:
     parser.add_argument("--test-size", type=int, default=24)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--output-dir", type=str, default="runs/tinker")
+    parser.add_argument("--topic", type=str, default=DEFAULT_TOPIC_ID)
+    parser.add_argument("--init-skill-max", type=float, default=0.28)
+    parser.add_argument("--weakest-skill-max", type=float, default=0.12)
+    parser.add_argument("--sample-log-per-step", type=int, default=3)
+    parser.add_argument("--api-timeout-sec", type=float, default=120.0)
     args = parser.parse_args()
+    _ = get_topic(args.topic)
     return TinkerTrainConfig(
         base_model=args.base_model,
         base_url=args.base_url,
@@ -62,6 +75,11 @@ def parse_args() -> TinkerTrainConfig:
         test_size=args.test_size,
         seed=args.seed,
         output_dir=args.output_dir,
+        topic_id=args.topic,
+        init_skill_max=args.init_skill_max,
+        weakest_skill_max=args.weakest_skill_max,
+        sample_log_per_step=args.sample_log_per_step,
+        api_timeout_sec=args.api_timeout_sec,
     )
 
 
@@ -88,7 +106,24 @@ def _sequence_list(result) -> list:
     return list(sequences)
 
 
+def _load_env_file(path: str = ".env") -> None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip().strip("'").strip('"')
+        os.environ.setdefault(key, value)
+
+
 def run_tinker_training(config: TinkerTrainConfig) -> None:
+    _load_env_file(".env")
     try:
         import tinker
         from tinker import types
@@ -102,6 +137,7 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
     metrics_path = output_dir / "metrics.jsonl"
     csv_path = output_dir / "metrics.csv"
     summary_path = output_dir / "summary.json"
+    sample_log_path = output_dir / "sample_texts.jsonl"
 
     service_kwargs = {}
     if config.base_url:
@@ -133,27 +169,45 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
         "mean_reward",
         "mean_improvement",
         "mean_tokens",
+        "mean_prompt_leaks",
         "datums",
         "groups",
         "elapsed_sec",
     ]
 
-    with csv_path.open("w", newline="") as csv_file, metrics_path.open("w") as jsonl_file:
+    with (
+        csv_path.open("w", newline="") as csv_file,
+        metrics_path.open("w") as jsonl_file,
+        sample_log_path.open("w") as sample_log_file,
+    ):
         writer = csv.DictWriter(csv_file, fieldnames=csv_fields)
         writer.writeheader()
 
         for step in range(1, config.steps + 1):
-            sampler_path = training_client.save_weights_for_sampler(
-                name=f"step-{step:04d}",
-                ttl_seconds=config.ttl_seconds,
-            ).result().path
+            try:
+                sampler_path = training_client.save_weights_for_sampler(
+                    name=f"step-{step:04d}",
+                    ttl_seconds=config.ttl_seconds,
+                ).result(timeout=config.api_timeout_sec).path
+            except Exception as exc:
+                print(f"step={step:04d} save_weights timeout/error: {exc}")
+                continue
             sampling_client = service_client.create_sampling_client(model_path=sampler_path)
 
             group_data = []
             futures = []
             for _ in range(config.batch_size):
-                profile = sample_weak_profile(rng)
-                prompt_text = build_teacher_prompt(profile, token_budget=config.max_tokens)
+                profile = sample_weak_profile(
+                    rng,
+                    topic_id=config.topic_id,
+                    skill_max=config.init_skill_max,
+                    weakest_max=config.weakest_skill_max,
+                )
+                prompt_text = build_teacher_prompt(
+                    profile,
+                    token_budget=config.max_tokens,
+                    topic_id=config.topic_id,
+                )
                 prompt_tokens = _encode(tokenizer, prompt_text)
                 if len(prompt_tokens) < 2:
                     continue
@@ -170,9 +224,15 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
             group_rewards = []
             group_improvements = []
             group_tokens = []
+            group_leaks = []
+            step_samples: list[dict] = []
 
             for future, (profile, prompt_tokens) in zip(futures, group_data):
-                result = future.result()
+                try:
+                    result = future.result(timeout=config.api_timeout_sec)
+                except Exception as exc:
+                    print(f"step={step:04d} sample timeout/error: {exc}")
+                    continue
                 sequences = _sequence_list(result)
                 rollout_data = []
                 rollout_rewards = []
@@ -197,6 +257,18 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
                         lesson_text=lesson_text,
                         token_penalty=config.token_penalty,
                         test_size=config.test_size,
+                        topic_id=config.topic_id,
+                    )
+                    step_samples.append(
+                        {
+                            "topic": config.topic_id,
+                            "weakest_skill": profile.weakest_skill,
+                            "reward": outcome.reward,
+                            "improvement": outcome.improvement,
+                            "tokens": outcome.tokens,
+                            "prompt_leaks": outcome.prompt_leak_hits,
+                            "lesson_text": lesson_text,
+                        }
                     )
                     rollout_data.append((sampled_tokens, sampled_logprobs, outcome))
                     rollout_rewards.append(outcome.reward)
@@ -208,6 +280,7 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
                 group_rewards.append(mean_group_reward)
                 group_improvements.append(statistics.fmean(item[2].improvement for item in rollout_data))
                 group_tokens.append(statistics.fmean(item[2].tokens for item in rollout_data))
+                group_leaks.append(statistics.fmean(item[2].prompt_leak_hits for item in rollout_data))
 
                 for sampled_tokens, sampled_logprobs, outcome in rollout_data:
                     advantage = outcome.reward - mean_group_reward
@@ -237,42 +310,61 @@ def run_tinker_training(config: TinkerTrainConfig) -> None:
                     datums.append(datum)
 
             if datums:
-                _ = training_client.forward_backward(
-                    datums=datums,
-                    loss_fn="importance_sampling",
-                ).result()
-                _ = training_client.optim_step(params=adam_params).result()
+                try:
+                    _ = training_client.forward_backward(
+                        datums=datums,
+                        loss_fn="importance_sampling",
+                    ).result(timeout=config.api_timeout_sec)
+                    _ = training_client.optim_step(params=adam_params).result(
+                        timeout=config.api_timeout_sec
+                    )
+                except Exception as exc:
+                    print(f"step={step:04d} train_step timeout/error: {exc}")
 
             row = {
                 "step": step,
                 "mean_reward": statistics.fmean(group_rewards) if group_rewards else 0.0,
                 "mean_improvement": statistics.fmean(group_improvements) if group_improvements else 0.0,
                 "mean_tokens": statistics.fmean(group_tokens) if group_tokens else 0.0,
+                "mean_prompt_leaks": statistics.fmean(group_leaks) if group_leaks else 0.0,
                 "datums": len(datums),
                 "groups": len(group_rewards),
                 "elapsed_sec": time.time() - start,
             }
             writer.writerow(row)
             jsonl_file.write(json.dumps(row) + "\n")
+            sorted_samples = sorted(step_samples, key=lambda item: item["reward"], reverse=True)
+            sample_log_file.write(
+                json.dumps(
+                    {
+                        "step": step,
+                        "top_samples": sorted_samples[: max(1, config.sample_log_per_step)],
+                        "worst_sample": sorted_samples[-1] if sorted_samples else None,
+                    }
+                )
+                + "\n"
+            )
 
             print(
                 f"step={step:04d} "
                 f"reward={row['mean_reward']:+.3f} "
                 f"improve={row['mean_improvement']:+.3f} "
                 f"tokens={row['mean_tokens']:.1f} "
+                f"leaks={row['mean_prompt_leaks']:.3f} "
                 f"datums={row['datums']}"
             )
 
     final_path = training_client.save_weights_for_sampler(
         name="final",
         ttl_seconds=config.ttl_seconds,
-    ).result().path
+    ).result(timeout=config.api_timeout_sec).path
     summary = {
         "final_model_path": final_path,
         "config": config.__dict__,
     }
     summary_path.write_text(json.dumps(summary, indent=2))
     print(f"wrote metrics to {metrics_path}")
+    print(f"wrote sample texts to {sample_log_path}")
     print(f"wrote summary to {summary_path}")
     print(f"final sampler path: {final_path}")
 

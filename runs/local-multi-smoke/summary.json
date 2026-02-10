@@ -1,0 +1,177 @@
+{
+  "config": {
+    "steps": 30,
+    "batch_size": 24,
+    "eval_students": 120,
+    "test_size": 24,
+    "learning_rate": 0.12,
+    "temperature": 1.0,
+    "token_penalty": 0.06,
+    "seed": 7,
+    "output_dir": "runs/local-multi-smoke",
+    "print_every": 10,
+    "topics": [
+      "decimal_to_binary",
+      "fraction_addition",
+      "subject_verb_agreement"
+    ],
+    "init_skill_max": 0.14,
+    "weakest_skill_max": 0.05
+  },
+  "topics": [
+    "decimal_to_binary",
+    "fraction_addition",
+    "subject_verb_agreement"
+  ],
+  "reference_best": {
+    "decimal_to_binary": {
+      "action": "place_values:rule:60:noquiz",
+      "reward": 5.872883717048052,
+      "improvement": 0.0857288371704805,
+      "tokens": 45,
+      "prompt_leaks": 0.0
+    },
+    "fraction_addition": {
+      "action": "convert_numerators:rule:60:noquiz",
+      "reward": 5.815382483233639,
+      "improvement": 0.0845538248323364,
+      "tokens": 44,
+      "prompt_leaks": 0.0
+    },
+    "subject_verb_agreement": {
+      "action": "self_check:worked_example:60:noquiz",
+      "reward": 7.800519666668769,
+      "improvement": 0.10560519666668769,
+      "tokens": 46,
+      "prompt_leaks": 0.0
+    }
+  },
+  "final_policies": {
+    "decimal_to_binary": [
+      {
+        "action": "place_values:rule:60:quiz",
+        "probability": 0.9376097010268343,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. Use powers of two place values: 1, 2, 4, 8, 16, 32. A 1 includes that place value; a 0 excludes it. Rule summary: divide by 2, track remainder, reverse order, verify. Your turn: convert 10 to binary, then check your answer. Quick quiz: what binary equals"
+      },
+      {
+        "action": "place_values:rule:92:quiz",
+        "probability": 0.008312661724616173,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. Use powers of two place values: 1, 2, 4, 8, 16, 32. A 1 includes that place value; a 0 excludes it. Rule summary: divide by 2, track remainder, reverse order, verify. Your turn: convert 10 to binary, then check your answer. Quick quiz: what binary equals decimal 19?"
+      },
+      {
+        "action": "place_values:rule:92:noquiz",
+        "probability": 0.004205364782401228,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. Use powers of two place values: 1, 2, 4, 8, 16, 32. A 1 includes that place value; a 0 excludes it. Rule summary: divide by 2, track remainder, reverse order, verify."
+      },
+      {
+        "action": "reverse_order:worked_example:36:noquiz",
+        "probability": 0.003451936889766971,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. After collecting remainders, read them in reverse order. Bottom-to-top order gives the binary answer. Example: 13 -> remainders 1, 0, 1, 1; reverse"
+      },
+      {
+        "action": "reverse_order:mistake_fix:92:quiz",
+        "probability": 0.002203507090384371,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. After collecting remainders, read them in reverse order. Bottom-to-top order gives the binary answer. Common mistake: writing remainders in forward order. Common mistake: stopping before quotient reaches 0. Your turn: convert 10 to binary, then check your answer. Quick quiz: what binary equals decimal 19?"
+      },
+      {
+        "action": "reverse_order:rule:92:noquiz",
+        "probability": 0.0019694881500911822,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. After collecting remainders, read them in reverse order. Bottom-to-top order gives the binary answer. Rule summary: divide by 2, track remainder, reverse order, verify."
+      },
+      {
+        "action": "reverse_order:worked_example:92:quiz",
+        "probability": 0.0019330866709446712,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. After collecting remainders, read them in reverse order. Bottom-to-top order gives the binary answer. Example: 13 -> remainders 1, 0, 1, 1; reverse gives 1101. Check: 1101 = 8 + 4 + 1 = 13. Your turn: convert 10 to binary, then check your answer. Quick quiz: what binary equals decimal 19?"
+      },
+      {
+        "action": "reverse_order:rule:92:quiz",
+        "probability": 0.00158819038035485,
+        "lesson": "Decimal to Binary Conversion lesson. Goal: Convert decimal numbers into correct binary representations. After collecting remainders, read them in reverse order. Bottom-to-top order gives the binary answer. Rule summary: divide by 2, track remainder, reverse order, verify. Your turn: convert 10 to binary, then check your answer. Quick quiz: what binary equals decimal 19?"
+      }
+    ],
+    "fraction_addition": [
+      {
+        "action": "convert_numerators:rule:92:noquiz",
+        "probability": 0.975945892829295,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Rule summary: common denominator -> rewrite -> add numerators -> simplify -> verify."
+      },
+      {
+        "action": "convert_numerators:worked_example:36:noquiz",
+        "probability": 0.0014784606225122896,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Example: 1/2 + 1/3 ->"
+      },
+      {
+        "action": "convert_numerators:mistake_fix:92:quiz",
+        "probability": 0.0009400208102044003,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Common mistake: adding denominators directly. Common mistake: forgetting to simplify at the end. Your turn: add 2/5 + 1/10 and simplify. Quick quiz: add 3/4 + 1/6 in simplest form."
+      },
+      {
+        "action": "convert_numerators:mistake_fix:60:noquiz",
+        "probability": 0.0008191728775132749,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Common mistake: adding denominators directly. Common mistake: forgetting to simplify at the end."
+      },
+      {
+        "action": "convert_numerators:mistake_fix:92:noquiz",
+        "probability": 0.0008017170005084145,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Common mistake: adding denominators directly. Common mistake: forgetting to simplify at the end."
+      },
+      {
+        "action": "convert_numerators:rule:92:quiz",
+        "probability": 0.000784463881949564,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Rule summary: common denominator -> rewrite -> add numerators -> simplify -> verify. Your turn: add 2/5 + 1/10 and simplify. Quick quiz: add 3/4 + 1/6 in simplest form."
+      },
+      {
+        "action": "common_denominator:rule:60:quiz",
+        "probability": 0.0007269336493478614,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Find a common denominator before adding fractions. The LCD keeps the conversion minimal and cleaner. Rule summary: common denominator -> rewrite -> add numerators -> simplify -> verify. Your turn: add 2/5 + 1/10 and simplify. Quick quiz: add 3/4 + 1/6 in simplest form."
+      },
+      {
+        "action": "convert_numerators:mistake_fix:60:quiz",
+        "probability": 0.0006839896362420311,
+        "lesson": "Fraction Addition lesson. Goal: Add fractions accurately and simplify the final result. Rewrite each fraction as an equivalent fraction with the common denominator. Multiply numerator and denominator by the same factor. Common mistake: adding denominators directly. Common mistake: forgetting to simplify at the end. Your turn: add 2/5 + 1/10 and simplify. Quick quiz: add 3/4 + 1/6 in simplest"
+      }
+    ],
+    "subject_verb_agreement": [
+      {
+        "action": "self_check:worked_example:92:noquiz",
+        "probability": 0.9694901630376676,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Reread sentence after filling the blank to check agreement. If it sounds awkward, re-check the subject number. Example: 'The teacher, along with notes, is ready.' Main subject is 'teacher' (singular), so use 'is'."
+      },
+      {
+        "action": "self_check:worked_example:60:noquiz",
+        "probability": 0.004730839085844871,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Reread sentence after filling the blank to check agreement. If it sounds awkward, re-check the subject number. Example: 'The teacher, along with notes, is ready.' Main subject is 'teacher' (singular), so use 'is'."
+      },
+      {
+        "action": "singular_plural_subject:mistake_fix:60:quiz",
+        "probability": 0.0012679836035063294,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Find the true subject first: singular subject uses singular verb. Plural subject uses plural verb. Common mistake: matching verb to the nearest noun instead of subject. Common mistake: letting prepositional phrases change agreement. Your turn: 'The students with the tutor ___ prepared (is/are)'. Quick quiz: 'The notebook,"
+      },
+      {
+        "action": "ignore_interrupting_phrase:worked_example:92:noquiz",
+        "probability": 0.0012392601927640225,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Ignore interrupting phrases between subject and verb. Agreement depends on the main subject, not inserted phrases. Example: 'The teacher, along with notes, is ready.' Main subject is 'teacher' (singular), so use 'is'."
+      },
+      {
+        "action": "singular_plural_subject:mistake_fix:60:noquiz",
+        "probability": 0.0012051056278826761,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Find the true subject first: singular subject uses singular verb. Plural subject uses plural verb. Common mistake: matching verb to the nearest noun instead of subject. Common mistake: letting prepositional phrases change agreement."
+      },
+      {
+        "action": "identify_main_verb:worked_example:60:quiz",
+        "probability": 0.0011370531919634415,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Match verb form directly to the subject number. Do not choose based on nearby nouns. Example: 'The teacher, along with notes, is ready.' Main subject is 'teacher' (singular), so use 'is'. Your turn: 'The students with the tutor ___ prepared (is/are)'. Quick quiz: 'The notebook, as well"
+      },
+      {
+        "action": "self_check:mistake_fix:92:quiz",
+        "probability": 0.0009628192142619386,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Reread sentence after filling the blank to check agreement. If it sounds awkward, re-check the subject number. Common mistake: matching verb to the nearest noun instead of subject. Common mistake: letting prepositional phrases change agreement. Your turn: 'The students with the tutor ___ prepared (is/are)'. Quick quiz: 'The notebook, as well as the pages, ___ missing (is/are)'."
+      },
+      {
+        "action": "singular_plural_subject:mistake_fix:92:noquiz",
+        "probability": 0.0008374495723652861,
+        "lesson": "Subject-Verb Agreement lesson. Goal: Pick verbs that agree with the true grammatical subject. Find the true subject first: singular subject uses singular verb. Plural subject uses plural verb. Common mistake: matching verb to the nearest noun instead of subject. Common mistake: letting prepositional phrases change agreement."
+      }
+    ]
+  }
+}

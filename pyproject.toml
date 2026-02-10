@@ -16,6 +16,7 @@ tinker = ["tinker>=0.1.0"]
 [project.scripts]
 edtech-local = "edtech_rl.local_train:main"
 edtech-tinker = "edtech_rl.tinker_train:main"
+edtech-inspect = "edtech_rl.inspect:main"
 
 [tool.setuptools.packages.find]
 include = ["edtech_rl*"]
