@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edtech-teacher-rl"
+version = "0.1.0"
+description = "Teacher-student RL experiment with a local simulator and a Tinker API trainer."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+tinker = ["tinker>=0.1.0"]
+
+[project.scripts]
+edtech-local = "edtech_rl.local_train:main"
+edtech-tinker = "edtech_rl.tinker_train:main"
+
+[tool.setuptools.packages.find]
+include = ["edtech_rl*"]

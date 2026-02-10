@@ -1,0 +1,58 @@
+{
+  "config": {
+    "steps": 8,
+    "batch_size": 16,
+    "eval_students": 120,
+    "test_size": 24,
+    "learning_rate": 0.12,
+    "temperature": 1.0,
+    "token_penalty": 0.06,
+    "seed": 7,
+    "output_dir": "runs/local-smoke2",
+    "print_every": 4
+  },
+  "best_reference_action": "place_values:rule:60:noquiz",
+  "best_reference_reward": 7.741056999271309,
+  "top_actions": [
+    {
+      "action": "place_values:rule:92:quiz",
+      "probability": 0.10618635447499214
+    },
+    {
+      "action": "place_values:rule:60:noquiz",
+      "probability": 0.05256490457423981
+    },
+    {
+      "action": "place_values:rule:92:noquiz",
+      "probability": 0.02922692829648209
+    },
+    {
+      "action": "place_values:mistake_fix:60:quiz",
+      "probability": 0.027888020101865207
+    },
+    {
+      "action": "reverse_order:mistake_fix:36:quiz",
+      "probability": 0.024577642751015327
+    },
+    {
+      "action": "division_remainders:rule:36:noquiz",
+      "probability": 0.01957241910501432
+    },
+    {
+      "action": "division_remainders:mistake_fix:60:noquiz",
+      "probability": 0.019456402533870088
+    },
+    {
+      "action": "reverse_order:worked_example:36:quiz",
+      "probability": 0.019079095341215626
+    },
+    {
+      "action": "reverse_order:worked_example:92:quiz",
+      "probability": 0.01883340745609827
+    },
+    {
+      "action": "reverse_order:rule:60:quiz",
+      "probability": 0.01820831271764075
+    }
+  ]
+}

@@ -1,0 +1,286 @@
+from __future__ import annotations
+
+import argparse
+import csv
+from dataclasses import dataclass
+import json
+from pathlib import Path
+import random
+import statistics
+import time
+
+from .domain import build_teacher_prompt, evaluate_lesson, sample_weak_profile
+
+
+@dataclass
+class TinkerTrainConfig:
+    base_model: str = "Qwen/Qwen3-8B"
+    base_url: str | None = None
+    steps: int = 80
+    batch_size: int = 8
+    group_size: int = 4
+    max_tokens: int = 96
+    temperature: float = 0.8
+    learning_rate: float = 4e-5
+    rank: int = 32
+    ttl_seconds: int = 86_400
+    token_penalty: float = 0.06
+    test_size: int = 24
+    seed: int = 17
+    output_dir: str = "runs/tinker"
+
+
+def parse_args() -> TinkerTrainConfig:
+    parser = argparse.ArgumentParser(description="Train a token-efficient teacher with the Tinker API.")
+    parser.add_argument("--base-model", type=str, default="Qwen/Qwen3-8B")
+    parser.add_argument("--base-url", type=str, default=None)
+    parser.add_argument("--steps", type=int, default=80)
+    parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--group-size", type=int, default=4)
+    parser.add_argument("--max-tokens", type=int, default=96)
+    parser.add_argument("--temperature", type=float, default=0.8)
+    parser.add_argument("--learning-rate", type=float, default=4e-5)
+    parser.add_argument("--rank", type=int, default=32)
+    parser.add_argument("--ttl-seconds", type=int, default=86_400)
+    parser.add_argument("--token-penalty", type=float, default=0.06)
+    parser.add_argument("--test-size", type=int, default=24)
+    parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--output-dir", type=str, default="runs/tinker")
+    args = parser.parse_args()
+    return TinkerTrainConfig(
+        base_model=args.base_model,
+        base_url=args.base_url,
+        steps=args.steps,
+        batch_size=args.batch_size,
+        group_size=args.group_size,
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
+        learning_rate=args.learning_rate,
+        rank=args.rank,
+        ttl_seconds=args.ttl_seconds,
+        token_penalty=args.token_penalty,
+        test_size=args.test_size,
+        seed=args.seed,
+        output_dir=args.output_dir,
+    )
+
+
+def _encode(tokenizer, text: str) -> list[int]:
+    try:
+        return list(tokenizer.encode(text, add_special_tokens=False))
+    except TypeError:
+        return list(tokenizer.encode(text))
+
+
+def _decode(tokenizer, tokens: list[int]) -> str:
+    try:
+        return tokenizer.decode(tokens, skip_special_tokens=True)
+    except TypeError:
+        return tokenizer.decode(tokens)
+
+
+def _sequence_list(result) -> list:
+    sequences = getattr(result, "sequences", None)
+    if sequences is None:
+        sequences = getattr(result, "samples", None)
+    if sequences is None:
+        raise RuntimeError("Tinker sample response had no `sequences` or `samples` attribute.")
+    return list(sequences)
+
+
+def run_tinker_training(config: TinkerTrainConfig) -> None:
+    try:
+        import tinker
+        from tinker import types
+    except ImportError as exc:
+        raise SystemExit(
+            "Missing dependency: install Tinker first with `pip install -e '.[tinker]'`."
+        ) from exc
+
+    output_dir = Path(config.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = output_dir / "metrics.jsonl"
+    csv_path = output_dir / "metrics.csv"
+    summary_path = output_dir / "summary.json"
+
+    service_kwargs = {}
+    if config.base_url:
+        service_kwargs["base_url"] = config.base_url
+
+    service_client = tinker.ServiceClient(**service_kwargs)
+    training_client = service_client.create_lora_training_client(
+        base_model=config.base_model,
+        rank=config.rank,
+    )
+    tokenizer = training_client.get_tokenizer()
+
+    sampling_params = types.SamplingParams(
+        max_tokens=config.max_tokens,
+        temperature=config.temperature,
+    )
+    adam_params = types.AdamParams(
+        learning_rate=config.learning_rate,
+        beta1=0.9,
+        beta2=0.95,
+        eps=1e-8,
+    )
+
+    rng = random.Random(config.seed)
+    start = time.time()
+
+    csv_fields = [
+        "step",
+        "mean_reward",
+        "mean_improvement",
+        "mean_tokens",
+        "datums",
+        "groups",
+        "elapsed_sec",
+    ]
+
+    with csv_path.open("w", newline="") as csv_file, metrics_path.open("w") as jsonl_file:
+        writer = csv.DictWriter(csv_file, fieldnames=csv_fields)
+        writer.writeheader()
+
+        for step in range(1, config.steps + 1):
+            sampler_path = training_client.save_weights_for_sampler(
+                name=f"step-{step:04d}",
+                ttl_seconds=config.ttl_seconds,
+            ).result().path
+            sampling_client = service_client.create_sampling_client(model_path=sampler_path)
+
+            group_data = []
+            futures = []
+            for _ in range(config.batch_size):
+                profile = sample_weak_profile(rng)
+                prompt_text = build_teacher_prompt(profile, token_budget=config.max_tokens)
+                prompt_tokens = _encode(tokenizer, prompt_text)
+                if len(prompt_tokens) < 2:
+                    continue
+                prompt = types.ModelInput.from_ints(prompt_tokens)
+                future = sampling_client.sample(
+                    prompt=prompt,
+                    num_samples=config.group_size,
+                    sampling_params=sampling_params,
+                )
+                futures.append(future)
+                group_data.append((profile, prompt_tokens))
+
+            datums = []
+            group_rewards = []
+            group_improvements = []
+            group_tokens = []
+
+            for future, (profile, prompt_tokens) in zip(futures, group_data):
+                result = future.result()
+                sequences = _sequence_list(result)
+                rollout_data = []
+                rollout_rewards = []
+
+                for sequence in sequences:
+                    sampled_tokens = list(getattr(sequence, "tokens", []))
+                    sampled_logprobs = list(getattr(sequence, "logprobs", []))
+                    if not sampled_tokens or not sampled_logprobs:
+                        continue
+                    if len(sampled_logprobs) == len(sampled_tokens) - 1:
+                        sampled_logprobs = [sampled_logprobs[0]] + sampled_logprobs
+                    if len(sampled_logprobs) != len(sampled_tokens):
+                        usable = min(len(sampled_tokens), len(sampled_logprobs))
+                        if usable <= 0:
+                            continue
+                        sampled_tokens = sampled_tokens[:usable]
+                        sampled_logprobs = sampled_logprobs[:usable]
+                    sampled_logprobs = [float(value) for value in sampled_logprobs]
+                    lesson_text = _decode(tokenizer, sampled_tokens)
+                    outcome = evaluate_lesson(
+                        profile=profile,
+                        lesson_text=lesson_text,
+                        token_penalty=config.token_penalty,
+                        test_size=config.test_size,
+                    )
+                    rollout_data.append((sampled_tokens, sampled_logprobs, outcome))
+                    rollout_rewards.append(outcome.reward)
+
+                if not rollout_data:
+                    continue
+
+                mean_group_reward = statistics.fmean(rollout_rewards)
+                group_rewards.append(mean_group_reward)
+                group_improvements.append(statistics.fmean(item[2].improvement for item in rollout_data))
+                group_tokens.append(statistics.fmean(item[2].tokens for item in rollout_data))
+
+                for sampled_tokens, sampled_logprobs, outcome in rollout_data:
+                    advantage = outcome.reward - mean_group_reward
+                    if abs(advantage) < 1e-8:
+                        continue
+                    observation_length = len(prompt_tokens) - 1
+                    model_input_tokens = prompt_tokens + sampled_tokens[:-1]
+                    target_tokens = [0] * observation_length + sampled_tokens
+                    padded_logprobs = [0.0] * observation_length + sampled_logprobs
+                    padded_advantages = [0.0] * observation_length + [advantage] * len(sampled_tokens)
+                    expected_len = observation_length + len(sampled_tokens)
+                    if (
+                        len(model_input_tokens) != expected_len
+                        or len(target_tokens) != expected_len
+                        or len(padded_logprobs) != expected_len
+                        or len(padded_advantages) != expected_len
+                    ):
+                        continue
+                    datum = types.Datum(
+                        model_input=types.ModelInput.from_ints(model_input_tokens),
+                        loss_fn_inputs={
+                            "target_tokens": types.TensorData(data=target_tokens, shape=[len(target_tokens)]),
+                            "logprobs": types.TensorData(data=padded_logprobs, shape=[len(padded_logprobs)]),
+                            "advantages": types.TensorData(data=padded_advantages, shape=[len(padded_advantages)]),
+                        },
+                    )
+                    datums.append(datum)
+
+            if datums:
+                _ = training_client.forward_backward(
+                    datums=datums,
+                    loss_fn="importance_sampling",
+                ).result()
+                _ = training_client.optim_step(params=adam_params).result()
+
+            row = {
+                "step": step,
+                "mean_reward": statistics.fmean(group_rewards) if group_rewards else 0.0,
+                "mean_improvement": statistics.fmean(group_improvements) if group_improvements else 0.0,
+                "mean_tokens": statistics.fmean(group_tokens) if group_tokens else 0.0,
+                "datums": len(datums),
+                "groups": len(group_rewards),
+                "elapsed_sec": time.time() - start,
+            }
+            writer.writerow(row)
+            jsonl_file.write(json.dumps(row) + "\n")
+
+            print(
+                f"step={step:04d} "
+                f"reward={row['mean_reward']:+.3f} "
+                f"improve={row['mean_improvement']:+.3f} "
+                f"tokens={row['mean_tokens']:.1f} "
+                f"datums={row['datums']}"
+            )
+
+    final_path = training_client.save_weights_for_sampler(
+        name="final",
+        ttl_seconds=config.ttl_seconds,
+    ).result().path
+    summary = {
+        "final_model_path": final_path,
+        "config": config.__dict__,
+    }
+    summary_path.write_text(json.dumps(summary, indent=2))
+    print(f"wrote metrics to {metrics_path}")
+    print(f"wrote summary to {summary_path}")
+    print(f"final sampler path: {final_path}")
+
+
+def main() -> None:
+    config = parse_args()
+    run_tinker_training(config)
+
+
+if __name__ == "__main__":
+    main()
